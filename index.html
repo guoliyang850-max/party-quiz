@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#b42318">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="党章答题">
+  <title>二十大党章答题</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="homeBtn" aria-label="返回首页" title="返回首页">⌂</button>
+    <div>
+      <strong>二十大党章答题</strong>
+      <span id="headerMeta">384题</span>
+    </div>
+    <button class="icon-btn" id="resetBtn" aria-label="清空学习记录" title="清空学习记录">↺</button>
+  </header>
+
+  <main>
+    <section id="homeView" class="view active">
+      <div class="hero-band">
+        <p class="eyebrow">共产党员网公开自测题整理</p>
+        <h1>二十大党章<br>知识练习</h1>
+        <div class="overview">
+          <div><b id="doneCount">0</b><span>已答</span></div>
+          <div><b id="accuracy">--</b><span>正确率</span></div>
+          <div><b id="wrongCount">0</b><span>错题</span></div>
+        </div>
+      </div>
+
+      <section class="actions-band">
+        <h2>开始练习</h2>
+        <div class="mode-grid">
+          <button class="mode primary" data-mode="continue">
+            <span>继续练习</span><small id="continueHint">从第1题开始</small>
+          </button>
+          <button class="mode" data-mode="random10"><span>随机10题</span><small>快速自测</small></button>
+          <button class="mode" data-mode="random20"><span>随机20题</span><small>日常练习</small></button>
+          <button class="mode" data-mode="random50"><span>随机50题</span><small>集中测试</small></button>
+          <button class="mode" data-mode="all"><span>全部题库</span><small>顺序练习384题</small></button>
+          <button class="mode" data-mode="wrong"><span>错题重练</span><small id="wrongHint">暂无错题</small></button>
+        </div>
+      </section>
+
+      <section class="progress-band">
+        <div class="section-title"><h2>学习进度</h2><span id="progressText">0 / 384</span></div>
+        <div class="progress"><i id="progressBar"></i></div>
+        <div class="category-row">
+          <span>单选题 306</span><span>多选题 78</span>
+        </div>
+      </section>
+    </section>
+
+    <section id="quizView" class="view">
+      <div class="quiz-head">
+        <div class="quiz-status"><span id="quizMode">顺序练习</span><b id="quizPosition">1 / 384</b></div>
+        <div class="progress slim"><i id="quizProgress"></i></div>
+      </div>
+      <article class="question-panel">
+        <div class="question-type" id="questionType">单项选择题</div>
+        <h2 id="questionText"></h2>
+        <div id="options" class="options"></div>
+        <div id="result" class="result" hidden></div>
+      </article>
+      <div class="quiz-controls">
+        <button class="secondary" id="prevBtn">上一题</button>
+        <button class="primary-action" id="submitBtn">提交答案</button>
+        <button class="secondary" id="nextBtn">下一题</button>
+      </div>
+    </section>
+
+    <section id="summaryView" class="view">
+      <div class="summary">
+        <span class="summary-mark">✓</span>
+        <p class="eyebrow">本轮练习完成</p>
+        <h1 id="summaryScore">0分</h1>
+        <p id="summaryDetail"></p>
+        <div class="summary-stats">
+          <div><b id="summaryCorrect">0</b><span>答对</span></div>
+          <div><b id="summaryWrong">0</b><span>答错</span></div>
+          <div><b id="summaryRate">0%</b><span>正确率</span></div>
+        </div>
+        <button class="primary-action wide" id="againBtn">再练一次</button>
+        <button class="text-btn" id="summaryHomeBtn">返回首页</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="resetDialog">
+    <h3>清空学习记录？</h3>
+    <p>答题进度、正确率和错题记录将全部清除。</p>
+    <div><button id="cancelReset" class="secondary">取消</button><button id="confirmReset" class="danger">清空</button></div>
+  </dialog>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
