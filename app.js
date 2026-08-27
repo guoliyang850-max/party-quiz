@@ -155,8 +155,14 @@
     submitted = false;
     $("questionType").textContent = q.type === 2 ? "多项选择题" : "单项选择题";
     $("questionText").textContent = q.stem;
-    $("quizPosition").textContent = `${cursor + 1} / ${session.length}`;
-    $("quizProgress").style.width = `${(cursor + 1) / session.length * 100}%`;
+  const globalIndex = questions.findIndex((x) => String(x.id) === String(q.id));
+const useGlobalPosition = currentMode === "continue" || currentMode === "all";
+const displayIndex = useGlobalPosition && globalIndex >= 0 ? globalIndex + 1 : cursor + 1;
+const displayTotal = useGlobalPosition ? questions.length : session.length;
+
+$("quizPosition").textContent = `${displayIndex} / ${displayTotal}`;
+$("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 100 : 0}%`;
+    
     $("options").innerHTML = "";
     q.options.forEach((option) => {
       const letter = optionLetter(option.text);
