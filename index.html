@@ -54,6 +54,16 @@
         <div class="category-row">
           <span>单选题 306</span><span>多选题 78</span>
         </div>
+        <div class="backup-actions" aria-label="学习进度备份">
+          <button class="backup-btn" id="exportBtn" type="button">
+            <span aria-hidden="true">↓</span>导出进度
+          </button>
+          <button class="backup-btn" id="importBtn" type="button">
+            <span aria-hidden="true">↑</span>导入进度
+          </button>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <p class="backup-hint">备份或恢复答题记录，不会自动清空当前进度</p>
       </section>
     </section>
 
