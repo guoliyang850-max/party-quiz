@@ -76,7 +76,10 @@
       <article class="question-panel">
         <div class="question-tools">
           <div class="question-type" id="questionType">单项选择题</div>
-          <button class="favorite-btn" id="favoriteBtn" type="button" aria-pressed="false"><span aria-hidden="true">☆</span>收藏此题</button>
+          <div class="question-actions">
+            <button class="remove-wrong-btn" id="removeWrongBtn" type="button" hidden>移除此错题</button>
+            <button class="favorite-btn" id="favoriteBtn" type="button" aria-pressed="false"><span aria-hidden="true">☆</span>收藏此题</button>
+          </div>
         </div>
         <h2 id="questionText"></h2>
         <div id="options" class="options"></div>
