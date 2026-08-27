@@ -4,6 +4,8 @@
   const LEGACY_KEY = "esddz-quiz-progress-v1";
   const DB_NAME = "esddz-quiz-db";
   const STORE_NAME = "progress";
+  const BACKUP_VERSION = 1;
+  const BACKUP_FORMAT = "esddz-quiz-progress";
   const DEFAULT_STATE = { answers: {}, lastIndex: 0, wrong: [], updatedAt: 0 };
 
   const normalizeState = (value) => ({
@@ -68,15 +70,19 @@
   async function writeDbState(snapshot) {
     try {
       const db = await openDb();
-      if (!db) return;
+      if (!db) return false;
       await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
         tx.objectStore(STORE_NAME).put(snapshot, KEY);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
       });
+      db.close();
+      return true;
     } catch (error) {
       console.warn("Unable to save IndexedDB progress", error);
+      return false;
     }
   }
 
@@ -90,6 +96,105 @@
       console.warn("Unable to save local progress", error);
     }
     void writeDbState(snapshot);
+  }
+
+  function createBackup() {
+    const snapshot = normalizeState(state);
+    return {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      appVersion: "pwa-v3",
+      exportedAt: new Date().toISOString(),
+      answers: snapshot.answers,
+      lastIndex: snapshot.lastIndex,
+      wrong: snapshot.wrong,
+      updatedAt: snapshot.updatedAt
+    };
+  }
+
+  function isPlainObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function validateBackup(value) {
+    if (!isPlainObject(value)) throw new Error("备份文件内容无效");
+    if (value.format !== BACKUP_FORMAT || value.version !== BACKUP_VERSION) {
+      throw new Error("不是受支持的答题进度备份文件");
+    }
+    if (!isPlainObject(value.answers)) throw new Error("answers 格式不正确");
+    if (!Number.isInteger(value.lastIndex) || value.lastIndex < 0 || value.lastIndex >= Math.max(questions.length, 1)) {
+      throw new Error("lastIndex 格式不正确");
+    }
+    if (!Array.isArray(value.wrong) || !value.wrong.every((id) => typeof id === "string" || typeof id === "number")) {
+      throw new Error("wrong 格式不正确");
+    }
+    if (!Number.isFinite(value.updatedAt) || value.updatedAt < 0) throw new Error("updatedAt 格式不正确");
+
+    const questionIds = new Set(questions.map((q) => String(q.id)));
+    for (const [id, answer] of Object.entries(value.answers)) {
+      if (!questionIds.has(String(id)) || !isPlainObject(answer) || typeof answer.correct !== "boolean") {
+        throw new Error(`第 ${id} 题的答题记录格式不正确`);
+      }
+      if (!Array.isArray(answer.selected) || !answer.selected.every((letter) => typeof letter === "string")) {
+        throw new Error(`第 ${id} 题的已选答案格式不正确`);
+      }
+      if (!Array.isArray(answer.answer) || !answer.answer.every((letter) => typeof letter === "string")) {
+        throw new Error(`第 ${id} 题的正确答案格式不正确`);
+      }
+    }
+    if (!value.wrong.every((id) => questionIds.has(String(id)))) throw new Error("错题列表中包含未知题目");
+
+    return {
+      answers: value.answers,
+      lastIndex: value.lastIndex,
+      wrong: [...new Set(value.wrong.map(String))],
+      updatedAt: value.updatedAt
+    };
+  }
+
+  async function exportProgress() {
+    await hydratePersistentState();
+    const content = JSON.stringify(createBackup(), null, 2);
+    const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `党章答题进度-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function importProgress(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) throw new Error("备份文件过大");
+    const imported = validateBackup(JSON.parse(await file.text()));
+    const answerCount = Object.keys(imported.answers).length;
+    const confirmed = window.confirm(
+      `确认导入这份进度吗？\n\n已答：${answerCount} 题\n错题：${imported.wrong.length} 题\n\n确认后将覆盖当前进度。`
+    );
+    if (!confirmed) return;
+
+    const previousRaw = localStorage.getItem(KEY);
+    const snapshot = normalizeState(imported);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(snapshot));
+      const dbSaved = await writeDbState(snapshot);
+      if (!dbSaved) throw new Error("无法写入设备数据库");
+    } catch (error) {
+      try {
+        if (previousRaw === null) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, previousRaw);
+      } catch (_) {}
+      throw error;
+    }
+
+    state = snapshot;
+    updateHome();
+    showView("homeView");
+    window.alert(`导入成功，已恢复 ${answerCount} 道答题记录。`);
   }
 
   async function hydratePersistentState() {
@@ -260,6 +365,23 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
   $("homeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("summaryHomeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("againBtn").addEventListener("click", () => start(currentMode));
+  $("exportBtn").addEventListener("click", () => {
+    exportProgress().catch((error) => {
+      console.warn("Unable to export progress", error);
+      window.alert("导出失败，请稍后重试。");
+    });
+  });
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    try {
+      await importProgress(file);
+    } catch (error) {
+      console.warn("Unable to import progress", error);
+      window.alert(`导入失败：${error instanceof SyntaxError ? "文件不是有效的 JSON" : error.message}`);
+    }
+  });
   $("resetBtn").addEventListener("click", () => $("resetDialog").showModal());
   $("cancelReset").addEventListener("click", () => $("resetDialog").close());
   $("confirmReset").addEventListener("click", () => {
