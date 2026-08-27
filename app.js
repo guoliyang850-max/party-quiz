@@ -39,6 +39,21 @@
   const answerLetters = (answer) => (answer.match(/[A-D]/g) || []).sort();
   const optionLetter = (text) => (text.match(/[A-D]/) || [""])[0];
 
+  function repairResumeIndex(target) {
+    if (!questions.length) return false;
+    let index = Math.min(Math.max(target.lastIndex, 0), questions.length - 1);
+    while (index < questions.length && target.answers[String(questions[index].id)]) index++;
+    if (index >= questions.length) {
+      const firstUnanswered = questions.findIndex((q) => !target.answers[String(q.id)]);
+      index = firstUnanswered >= 0 ? firstUnanswered : 0;
+    }
+    if (target.lastIndex === index) return false;
+    target.lastIndex = index;
+    return true;
+  }
+
+  repairResumeIndex(state);
+
   function openDb() {
     return new Promise((resolve, reject) => {
       if (!("indexedDB" in window)) return resolve(null);
@@ -208,7 +223,9 @@
   async function hydratePersistentState() {
     const dbState = await readDbState();
     if (dbState && dbState.updatedAt > state.updatedAt) state = dbState;
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {}
+    const repaired = repairResumeIndex(state);
+    if (repaired) save();
+    else try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {}
     updateHome();
   }
 
@@ -244,7 +261,8 @@
     currentMode = mode;
     const labels = { continue: "继续练习", random10: "随机10题", random20: "随机20题", random50: "随机50题", all: "全部题库", wrong: "错题重练", favorite: "收藏题目" };
     if (mode === "continue") {
-      session = questions.slice(state.lastIndex).concat(questions.slice(0, state.lastIndex));
+      repairResumeIndex(state);
+      session = questions.slice(state.lastIndex);
     } else if (mode === "wrong") {
       session = questions.filter((q) => state.wrong.includes(String(q.id)));
       if (!session.length) return;
@@ -273,6 +291,7 @@
     $("questionType").textContent = q.type === 2 ? "多项选择题" : "单项选择题";
     $("questionText").textContent = q.stem;
     updateFavoriteButton(q);
+    updateWrongButton(q);
   const globalIndex = questions.findIndex((x) => String(x.id) === String(q.id));
 const useGlobalPosition = currentMode === "continue" || currentMode === "all";
 const displayIndex = useGlobalPosition && globalIndex >= 0 ? globalIndex + 1 : cursor + 1;
@@ -318,6 +337,23 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
     updateHome();
   }
 
+  function updateWrongButton(question) {
+    const isWrongMode = currentMode === "wrong";
+    const isInWrongList = state.wrong.includes(String(question.id));
+    $("removeWrongBtn").hidden = !isWrongMode;
+    $("removeWrongBtn").disabled = !isInWrongList;
+    $("removeWrongBtn").textContent = isInWrongList ? "移除此错题" : "已移出错题";
+  }
+
+  function removeCurrentWrong() {
+    const q = session[cursor];
+    if (!q) return;
+    state.wrong = state.wrong.filter((id) => id !== String(q.id));
+    save();
+    updateWrongButton(q);
+    updateHome();
+  }
+
   function selectOption(button, type) {
     if (submitted) return;
     const letter = button.dataset.letter;
@@ -343,10 +379,11 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
     sessionResults[q.id] = correct;
     state.answers[q.id] = { correct, selected: picked, answer: correctLetters };
     const qIndex = questions.findIndex((x) => String(x.id) === String(q.id));
-    if (qIndex >= 0) state.lastIndex = (qIndex + 1) % questions.length;
+    if (currentMode === "continue" && qIndex >= 0) state.lastIndex = (qIndex + 1) % questions.length;
     if (correct) state.wrong = state.wrong.filter((id) => id !== String(q.id));
     else if (!state.wrong.includes(String(q.id))) state.wrong.push(String(q.id));
     save();
+    updateWrongButton(q);
 
     document.querySelectorAll(".option").forEach((button) => {
       const letter = button.dataset.letter;
@@ -394,6 +431,7 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
   $("prevBtn").addEventListener("click", previous);
   $("nextBtn").addEventListener("click", next);
   $("favoriteBtn").addEventListener("click", toggleFavorite);
+  $("removeWrongBtn").addEventListener("click", removeCurrentWrong);
   $("homeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("summaryHomeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("againBtn").addEventListener("click", () => start(currentMode));
