@@ -45,6 +45,7 @@
           <button class="mode" data-mode="random50"><span>随机50题</span><small>集中测试</small></button>
           <button class="mode" data-mode="all"><span>全部题库</span><small>顺序练习384题</small></button>
           <button class="mode" data-mode="wrong"><span>错题重练</span><small id="wrongHint">暂无错题</small></button>
+          <button class="mode" data-mode="favorite"><span>收藏题目</span><small id="favoriteHint">暂无收藏</small></button>
         </div>
       </section>
 
@@ -73,7 +74,10 @@
         <div class="progress slim"><i id="quizProgress"></i></div>
       </div>
       <article class="question-panel">
-        <div class="question-type" id="questionType">单项选择题</div>
+        <div class="question-tools">
+          <div class="question-type" id="questionType">单项选择题</div>
+          <button class="favorite-btn" id="favoriteBtn" type="button" aria-pressed="false"><span aria-hidden="true">☆</span>收藏此题</button>
+        </div>
         <h2 id="questionText"></h2>
         <div id="options" class="options"></div>
         <div id="result" class="result" hidden></div>
