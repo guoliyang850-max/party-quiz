@@ -1,4 +1,4 @@
-const CACHE = "esddz-quiz-v2";
+const CACHE = "esddz-quiz-v3";
 const ASSETS = [
   "./",
   "index.html",
