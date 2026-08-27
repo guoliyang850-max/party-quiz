@@ -54,7 +54,11 @@ h2 { margin: 0 0 18px; font-size: 20px; }
 .quiz-status b { font-size: 14px; }
 .progress.slim { height: 5px; margin: 12px 0 0; }
 .question-panel { background: white; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 28px; min-height: 460px; }
-.question-type { display: inline-flex; padding: 5px 9px; border-left: 3px solid var(--red); background: #f5e8e6; color: var(--red-dark); font-size: 13px; font-weight: 700; margin-bottom: 18px; }
+.question-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.question-type { display: inline-flex; padding: 5px 9px; border-left: 3px solid var(--red); background: #f5e8e6; color: var(--red-dark); font-size: 13px; font-weight: 700; }
+.favorite-btn { min-height: 36px; border: 1px solid var(--line); border-radius: 18px; padding: 6px 12px; background: var(--white); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.favorite-btn span { margin-right: 5px; color: var(--gold); font-size: 18px; vertical-align: -1px; }
+.favorite-btn.active { border-color: var(--gold); background: #fff9e7; color: var(--ink); }
 .question-panel h2 { font-size: 20px; line-height: 1.65; margin-bottom: 22px; }
 .options { display: grid; gap: 11px; }
 .option { width: 100%; min-height: 56px; border: 1px solid var(--line); background: white; border-radius: 6px; padding: 12px 14px; text-align: left; display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: center; line-height: 1.45; }
