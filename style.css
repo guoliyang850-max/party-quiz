@@ -56,9 +56,12 @@ h2 { margin: 0 0 18px; font-size: 20px; }
 .question-panel { background: white; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 28px; min-height: 460px; }
 .question-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .question-type { display: inline-flex; padding: 5px 9px; border-left: 3px solid var(--red); background: #f5e8e6; color: var(--red-dark); font-size: 13px; font-weight: 700; }
+.question-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .favorite-btn { min-height: 36px; border: 1px solid var(--line); border-radius: 18px; padding: 6px 12px; background: var(--white); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .favorite-btn span { margin-right: 5px; color: var(--gold); font-size: 18px; vertical-align: -1px; }
 .favorite-btn.active { border-color: var(--gold); background: #fff9e7; color: var(--ink); }
+.remove-wrong-btn { min-height: 36px; border: 1px solid var(--red); border-radius: 18px; padding: 6px 12px; background: var(--white); color: var(--red); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.remove-wrong-btn:disabled { border-color: var(--line); color: var(--muted); opacity: .65; cursor: default; }
 .question-panel h2 { font-size: 20px; line-height: 1.65; margin-bottom: 22px; }
 .options { display: grid; gap: 11px; }
 .option { width: 100%; min-height: 56px; border: 1px solid var(--line); background: white; border-radius: 6px; padding: 12px 14px; text-align: left; display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: center; line-height: 1.45; }
@@ -103,4 +106,7 @@ dialog div { display: flex; justify-content: flex-end; gap: 10px; }
   .quiz-head, .quiz-controls { padding-left: 16px; padding-right: 16px; }
   .quiz-controls { grid-template-columns: 1fr 1.45fr 1fr; }
   .quiz-controls button { padding: 8px 6px; font-size: 14px; }
+  .question-tools { align-items: flex-start; }
+  .question-actions { flex-direction: column-reverse; align-items: flex-end; }
+  .favorite-btn, .remove-wrong-btn { min-height: 32px; padding: 4px 10px; }
 }
