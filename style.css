@@ -44,6 +44,11 @@ h2 { margin: 0 0 18px; font-size: 20px; }
 .section-title span, .category-row { color: var(--muted); font-size: 13px; }
 .progress { height: 10px; background: #ebe8e3; overflow: hidden; margin: 14px 0 12px; }
 .progress i { display: block; height: 100%; width: 0; background: var(--red); transition: width .25s; }
+.backup-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+.backup-btn { min-height: 48px; border: 1px solid var(--red); border-radius: 5px; background: var(--white); color: var(--red); font-weight: 700; }
+.backup-btn:hover { background: #fff6f4; }
+.backup-btn span { display: inline-block; margin-right: 7px; font-size: 18px; line-height: 1; }
+.backup-hint { margin: 9px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .quiz-head { padding: 20px 28px 12px; }
 .quiz-status span { color: var(--red); font-weight: 700; }
 .quiz-status b { font-size: 14px; }
