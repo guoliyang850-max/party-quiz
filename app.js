@@ -6,12 +6,13 @@
   const STORE_NAME = "progress";
   const BACKUP_VERSION = 1;
   const BACKUP_FORMAT = "esddz-quiz-progress";
-  const DEFAULT_STATE = { answers: {}, lastIndex: 0, wrong: [], updatedAt: 0 };
+  const DEFAULT_STATE = { answers: {}, lastIndex: 0, wrong: [], favorites: [], updatedAt: 0 };
 
   const normalizeState = (value) => ({
     answers: value && typeof value.answers === "object" && value.answers ? value.answers : {},
     lastIndex: Number.isInteger(value?.lastIndex) ? value.lastIndex : 0,
     wrong: Array.isArray(value?.wrong) ? value.wrong.map(String) : [],
+    favorites: Array.isArray(value?.favorites) ? value.favorites.map(String) : [],
     updatedAt: Number(value?.updatedAt || 0)
   });
 
@@ -103,11 +104,12 @@
     return {
       format: BACKUP_FORMAT,
       version: BACKUP_VERSION,
-      appVersion: "pwa-v3",
+      appVersion: "pwa-v4",
       exportedAt: new Date().toISOString(),
       answers: snapshot.answers,
       lastIndex: snapshot.lastIndex,
       wrong: snapshot.wrong,
+      favorites: snapshot.favorites,
       updatedAt: snapshot.updatedAt
     };
   }
@@ -128,6 +130,9 @@
     if (!Array.isArray(value.wrong) || !value.wrong.every((id) => typeof id === "string" || typeof id === "number")) {
       throw new Error("wrong 格式不正确");
     }
+    if (value.favorites !== undefined && (!Array.isArray(value.favorites) || !value.favorites.every((id) => typeof id === "string" || typeof id === "number"))) {
+      throw new Error("favorites 格式不正确");
+    }
     if (!Number.isFinite(value.updatedAt) || value.updatedAt < 0) throw new Error("updatedAt 格式不正确");
 
     const questionIds = new Set(questions.map((q) => String(q.id)));
@@ -143,11 +148,14 @@
       }
     }
     if (!value.wrong.every((id) => questionIds.has(String(id)))) throw new Error("错题列表中包含未知题目");
+    const favorites = value.favorites || [];
+    if (!favorites.every((id) => questionIds.has(String(id)))) throw new Error("收藏列表中包含未知题目");
 
     return {
       answers: value.answers,
       lastIndex: value.lastIndex,
       wrong: [...new Set(value.wrong.map(String))],
+      favorites: [...new Set(favorites.map(String))],
       updatedAt: value.updatedAt
     };
   }
@@ -216,6 +224,7 @@
     $("accuracy").textContent = records.length ? `${Math.round(correct / records.length * 100)}%` : "--";
     $("wrongCount").textContent = state.wrong.length;
     $("wrongHint").textContent = state.wrong.length ? `${state.wrong.length}道待巩固` : "暂无错题";
+    $("favoriteHint").textContent = state.favorites.length ? `${state.favorites.length}道已收藏` : "暂无收藏";
     $("progressText").textContent = `${records.length} / ${questions.length}`;
     $("progressBar").style.width = `${questions.length ? records.length / questions.length * 100 : 0}%`;
     $("continueHint").textContent = `从第${Math.min(state.lastIndex + 1, questions.length || 1)}题继续`;
@@ -233,11 +242,14 @@
 
   function start(mode) {
     currentMode = mode;
-    const labels = { continue: "继续练习", random10: "随机10题", random20: "随机20题", random50: "随机50题", all: "全部题库", wrong: "错题重练" };
+    const labels = { continue: "继续练习", random10: "随机10题", random20: "随机20题", random50: "随机50题", all: "全部题库", wrong: "错题重练", favorite: "收藏题目" };
     if (mode === "continue") {
       session = questions.slice(state.lastIndex).concat(questions.slice(0, state.lastIndex));
     } else if (mode === "wrong") {
       session = questions.filter((q) => state.wrong.includes(String(q.id)));
+      if (!session.length) return;
+    } else if (mode === "favorite") {
+      session = questions.filter((q) => state.favorites.includes(String(q.id)));
       if (!session.length) return;
     } else if (mode.startsWith("random")) {
       session = shuffle(questions).slice(0, Number(mode.replace("random", "")));
@@ -260,6 +272,7 @@
     submitted = false;
     $("questionType").textContent = q.type === 2 ? "多项选择题" : "单项选择题";
     $("questionText").textContent = q.stem;
+    updateFavoriteButton(q);
   const globalIndex = questions.findIndex((x) => String(x.id) === String(q.id));
 const useGlobalPosition = currentMode === "continue" || currentMode === "all";
 const displayIndex = useGlobalPosition && globalIndex >= 0 ? globalIndex + 1 : cursor + 1;
@@ -285,6 +298,24 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
     $("submitBtn").disabled = true;
     $("prevBtn").disabled = cursor === 0;
     $("nextBtn").disabled = true;
+  }
+
+  function updateFavoriteButton(question) {
+    const isFavorite = state.favorites.includes(String(question.id));
+    $("favoriteBtn").classList.toggle("active", isFavorite);
+    $("favoriteBtn").setAttribute("aria-pressed", String(isFavorite));
+    $("favoriteBtn").innerHTML = `<span aria-hidden="true">${isFavorite ? "★" : "☆"}</span>${isFavorite ? "已收藏" : "收藏此题"}`;
+  }
+
+  function toggleFavorite() {
+    const q = session[cursor];
+    if (!q) return;
+    const id = String(q.id);
+    if (state.favorites.includes(id)) state.favorites = state.favorites.filter((item) => item !== id);
+    else state.favorites = [...state.favorites, id];
+    save();
+    updateFavoriteButton(q);
+    updateHome();
   }
 
   function selectOption(button, type) {
@@ -362,6 +393,7 @@ $("quizProgress").style.width = `${displayTotal ? displayIndex / displayTotal * 
   $("submitBtn").addEventListener("click", submit);
   $("prevBtn").addEventListener("click", previous);
   $("nextBtn").addEventListener("click", next);
+  $("favoriteBtn").addEventListener("click", toggleFavorite);
   $("homeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("summaryHomeBtn").addEventListener("click", () => { updateHome(); showView("homeView"); });
   $("againBtn").addEventListener("click", () => start(currentMode));
