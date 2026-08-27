@@ -1,7 +1,29 @@
 (() => {
   const questions = window.QUESTIONS || [];
-  const KEY = "esddz-quiz-progress-v1";
-  const state = JSON.parse(localStorage.getItem(KEY) || '{"answers":{},"lastIndex":0,"wrong":[]}');
+  const KEY = "esddz-quiz-progress-v2";
+  const LEGACY_KEY = "esddz-quiz-progress-v1";
+  const DB_NAME = "esddz-quiz-db";
+  const STORE_NAME = "progress";
+  const DEFAULT_STATE = { answers: {}, lastIndex: 0, wrong: [], updatedAt: 0 };
+
+  const normalizeState = (value) => ({
+    answers: value && typeof value.answers === "object" && value.answers ? value.answers : {},
+    lastIndex: Number.isInteger(value?.lastIndex) ? value.lastIndex : 0,
+    wrong: Array.isArray(value?.wrong) ? value.wrong.map(String) : [],
+    updatedAt: Number(value?.updatedAt || 0)
+  });
+
+  function readLocalState() {
+    try {
+      const raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
+      return raw ? normalizeState(JSON.parse(raw)) : { ...DEFAULT_STATE };
+    } catch (error) {
+      console.warn("Unable to read local progress", error);
+      return { ...DEFAULT_STATE };
+    }
+  }
+
+  let state = readLocalState();
   let session = [];
   let cursor = 0;
   let selections = new Set();
@@ -13,7 +35,69 @@
   const views = ["homeView", "quizView", "summaryView"];
   const answerLetters = (answer) => (answer.match(/[A-D]/g) || []).sort();
   const optionLetter = (text) => (text.match(/[A-D]/) || [""])[0];
-  const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) return resolve(null);
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function readDbState() {
+    try {
+      const db = await openDb();
+      if (!db) return null;
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const request = tx.objectStore(STORE_NAME).get(KEY);
+        request.onsuccess = () => resolve(request.result ? normalizeState(request.result) : null);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn("Unable to read IndexedDB progress", error);
+      return null;
+    }
+  }
+
+  async function writeDbState(snapshot) {
+    try {
+      const db = await openDb();
+      if (!db) return;
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).put(snapshot, KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (error) {
+      console.warn("Unable to save IndexedDB progress", error);
+    }
+  }
+
+  function save() {
+    state.updatedAt = Date.now();
+    const snapshot = normalizeState(state);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(snapshot));
+      localStorage.removeItem(LEGACY_KEY);
+    } catch (error) {
+      console.warn("Unable to save local progress", error);
+    }
+    void writeDbState(snapshot);
+  }
+
+  async function hydratePersistentState() {
+    const dbState = await readDbState();
+    if (dbState && dbState.updatedAt > state.updatedAt) state = dbState;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {}
+    updateHome();
+  }
 
   function showView(id) {
     views.forEach((name) => $(name).classList.toggle("active", name === id));
@@ -28,8 +112,8 @@
     $("wrongCount").textContent = state.wrong.length;
     $("wrongHint").textContent = state.wrong.length ? `${state.wrong.length}道待巩固` : "暂无错题";
     $("progressText").textContent = `${records.length} / ${questions.length}`;
-    $("progressBar").style.width = `${records.length / questions.length * 100}%`;
-    $("continueHint").textContent = `从第${Math.min(state.lastIndex + 1, questions.length)}题继续`;
+    $("progressBar").style.width = `${questions.length ? records.length / questions.length * 100 : 0}%`;
+    $("continueHint").textContent = `从第${Math.min(state.lastIndex + 1, questions.length || 1)}题继续`;
     $("headerMeta").textContent = `${questions.length}题`;
   }
 
@@ -142,6 +226,7 @@
   function previous() {
     if (cursor > 0) { cursor--; renderQuestion(); }
   }
+
   function next() {
     if (cursor < session.length - 1) { cursor++; renderQuestion(); }
     else finish();
@@ -172,15 +257,39 @@
   $("resetBtn").addEventListener("click", () => $("resetDialog").showModal());
   $("cancelReset").addEventListener("click", () => $("resetDialog").close());
   $("confirmReset").addEventListener("click", () => {
-    state.answers = {}; state.lastIndex = 0; state.wrong = []; save(); updateHome(); $("resetDialog").close(); showView("homeView");
+    state = { ...DEFAULT_STATE };
+    save();
+    updateHome();
+    $("resetDialog").close();
+    showView("homeView");
   });
+
   document.addEventListener("keydown", (event) => {
     if (!$("quizView").classList.contains("active")) return;
     if (/^[1-4]$/.test(event.key) && !submitted) document.querySelectorAll(".option")[Number(event.key) - 1]?.click();
     if (event.key === "Enter" && !$("submitBtn").disabled) $("submitBtn").click();
   });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") save();
+    else void hydratePersistentState();
+  });
+  window.addEventListener("pagehide", save);
+  window.addEventListener("pageshow", () => void hydratePersistentState());
+
   updateHome();
+  void hydratePersistentState();
+
+  if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js"));
+    window.addEventListener("load", async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" });
+        await registration.update();
+      } catch (error) {
+        console.warn("Service worker registration failed", error);
+      }
+    });
   }
 })();
