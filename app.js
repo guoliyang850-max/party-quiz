@@ -38,19 +38,51 @@
   const views = ["homeView", "quizView", "summaryView"];
   const answerLetters = (answer) => (answer.match(/[A-D]/g) || []).sort();
   const optionLetter = (text) => (text.match(/[A-D]/) || [""])[0];
+function repairResumeIndex(target) {
+  if (!questions.length) return false;
 
-  function repairResumeIndex(target) {
-    if (!questions.length) return false;
-    let index = Math.min(Math.max(target.lastIndex, 0), questions.length - 1);
-    while (index < questions.length && target.answers[String(questions[index].id)]) index++;
-    if (index >= questions.length) {
-      const firstUnanswered = questions.findIndex((q) => !target.answers[String(q.id)]);
-      index = firstUnanswered >= 0 ? firstUnanswered : 0;
-    }
-    if (target.lastIndex === index) return false;
-    target.lastIndex = index;
+  const answeredCount = Object.keys(target.answers || {}).length;
+  const allAnswered = answeredCount >= questions.length;
+
+  if (allAnswered) {
+    const normalized =
+      ((target.lastIndex % questions.length) + questions.length) %
+      questions.length;
+
+    if (target.lastIndex === normalized) return false;
+
+    target.lastIndex = normalized;
     return true;
   }
+
+  let index = Math.min(
+    Math.max(target.lastIndex, 0),
+    questions.length - 1
+  );
+
+  while (
+    index < questions.length &&
+    target.answers[String(questions[index].id)]
+  ) {
+    index++;
+  }
+
+  if (index >= questions.length) {
+    const firstUnanswered = questions.findIndex(
+      (q) => !target.answers[String(q.id)]
+    );
+
+    index =
+      firstUnanswered >= 0
+        ? firstUnanswered
+        : target.lastIndex;
+  }
+
+  if (target.lastIndex === index) return false;
+
+  target.lastIndex = index;
+  return true;
+}
 
   repairResumeIndex(state);
 
